@@ -26,7 +26,6 @@ EOF
 
 # Parse arguments
 OUTPUT_FILE=""
-domain=""
 PORTS=("${DEFAULT_PORTS[@]}")
 
 while [[ $# -gt 0 ]]; do
@@ -43,21 +42,33 @@ while [[ $# -gt 0 ]]; do
             show_help
             ;;
         *)
-            domain="$1"
+            INPUT_FILE="$1"
             shift
             ;;
     esac
 done
 
+# Ensure input file is provided
+if [ -z "$INPUT_FILE" ]; then
+    echo "Error: Input file is required."
+    echo "Use --help for usage information."
+    exit 1
+fi
 
-# # Initialize output (if specified)
-# if [ -n "$OUTPUT_FILE" ]; then
-#     header_format="%-25s %-10s %-10s %-10s %-15s %-15s\n"
-#     {
-#         printf "$header_format" "Domain" "Status" "HTTP Code" "HTTPS Code" "Ping Status" "Open Ports"
-#         printf "$header_format" "------" "------" "---------" "---------" "-----------" "----------"
-#     } > "$OUTPUT_FILE"
-# fi
+# Check if the input file exists
+if [ ! -f "$INPUT_FILE" ]; then
+    echo "Error: File $INPUT_FILE not found!"
+    exit 1
+fi
+
+# Initialize output (if specified)
+if [ -n "$OUTPUT_FILE" ]; then
+    header_format="%-25s %-10s %-10s %-10s %-15s %-15s\n"
+    {
+        printf "$header_format" "Domain" "Status" "HTTP Code" "HTTPS Code" "Ping Status" "Open Ports"
+        printf "$header_format" "------" "------" "---------" "---------" "-----------" "----------"
+    } > "$OUTPUT_FILE"
+fi
 
 # Function to check ports
 check_ports() {
@@ -71,7 +82,10 @@ check_ports() {
     echo "${open_ports[*]}"
 }
 
-
+# Process each domain
+while IFS= read -r domain; do
+    # Skip empty lines
+    [[ -z "$domain" ]] && continue
 
     echo "Processing domain: $domain..."
 
@@ -89,10 +103,11 @@ check_ports() {
         ping_status="Active"
     fi
 
-
+    # If ping works, check open ports
+    if [ "$ping_status" == "Active" ]; then
         open_ports=$(check_ports "$domain")
         [ -z "$open_ports" ] && open_ports="None"
-
+    fi
 
     # Format row data
     row_format="%-25s %-10s %-10s %-10s %-15s %-15s\n"
@@ -103,11 +118,9 @@ check_ports() {
 
     # Append row to output file if specified
     if [ -n "$OUTPUT_FILE" ]; then
-        if [ -n "$OUTPUT_FILE" ] && [ "$open_ports" != "None" ]; then
-            echo "$row_data" >> "$OUTPUT_FILE"
-        fi
+        echo "$row_data" >> "$OUTPUT_FILE"
     fi
-
+done < "$INPUT_FILE"
 
 if [ -n "$OUTPUT_FILE" ]; then
     echo "Domain status results saved to $OUTPUT_FILE"
