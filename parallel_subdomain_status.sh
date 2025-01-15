@@ -3,7 +3,13 @@
 # Default temp files
 TEMP_RESULT_FILE="subfinder_temp_results.txt"
 PROCESSED_FILE="processed_subdomains.txt"
+WAYBACKDOMAIN="waybackdomain.txt"
+WAYBACKOUTPUT="waybackurls.txt"
 
+touch $WAYBACKOUTPUT $WAYBACKDOMAIN
+
+> waybackdomain.txt
+> waybackurls.txt
 # Variables for process control
 SUBFINDER_PID=""
 MONITOR_PID=""
@@ -40,11 +46,48 @@ monitor_subfinder() {
     echo "Subfinder process completed. Exiting script."
     exit 0
 }
+
+run_waybackurl(){
+
+    local domain=$1
+    (echo $domain | waybackurls > waybackurls.txt) &
+    WAYBACK_PID=$!
+}
+# run_waybackurl(){
+
+# local domain=$1
+# (echo "$domain" | waybackurls -no-subs >> "$RESULT_FILE") &
+# WAYBACK_PID=$!
+
+# while true; do
+#   # Read domains not yet processed
+#   while IFS= read -r domain; do
+#     if ! grep -qFx "$domain" "$PROCESSED_FILE"; then
+#       echo "New domain found: $domain, launching waybackurls for it"
+      
+#       # Run waybackurls in the background and append results
+#       (echo "$domain" | waybackurls -no-subs >> "$RESULT_FILE") &
+      
+#       # Mark domain as processed
+#       echo "$domain" >> "$PROCESSED_FILE"
+
+#       ## condition for fininshing waybackurls
+#       if kill -0 $WAYBACK_PID 2>/dev/null; then
+#         echo "waybackurls process (PID: $WAYBACK_PID) is running for $domain..."
+#       else
+#         echo "waybackurls process (PID: $WAYBACK_PID) has finished for $domain."
+#       fi
+
+#     fi
+#   done < "$RESULT_FILE"
+
+# }
+
 # Function to run subfinder
 run_subfinder() {
     local domain=$1
     echo "Running subfinder for domain: $domain..."
-    ./find_subdomain.sh -d "$domain" -o "$TEMP_RESULT_FILE" &
+    find_subdomain -d "$domain" -o "$TEMP_RESULT_FILE" &
     SUBFINDER_PID=$!
     echo "Subfinder PID: $SUBFINDER_PID"
      # Start monitoring the process in the background
@@ -56,7 +99,7 @@ process_subdomain() {
     local subdomain=$1
     local final_output_file=$2
     echo "Status checking for $subdomain..."
-    ./check_domain.sh -o "$final_output_file" "$subdomain" &
+    status_domain -o "$final_output_file" "$subdomain" &
     sleep 1
     echo "$subdomain processed."
 }
@@ -169,6 +212,7 @@ main() {
     run_subfinder "$domain"
     monitor_subdomains "$OUTPUT_FILE" &
     MONITOR_PID=$!
+    run_waybackurl
 
     # Launch control terminal
     control_terminal
