@@ -100,8 +100,8 @@ process_subdomain() {
     local final_output_file=$2
     echo "Status checking for $subdomain..."
     status_domain -o "$final_output_file" "$subdomain" &
-    sleep 1
-    echo "$subdomain processed."
+    #sleep 1
+    #echo "$subdomain processed."
 }
 
 # Function to monitor and process new subdomains
@@ -209,10 +209,10 @@ main() {
     fi
 
     # Run subfinder and monitor in parallel
+    run_waybackurl "$domain" 
     run_subfinder "$domain"
     monitor_subdomains "$OUTPUT_FILE" &
     MONITOR_PID=$!
-    run_waybackurl
 
     # Launch control terminal
     control_terminal
