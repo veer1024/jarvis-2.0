@@ -6,6 +6,9 @@ PROCESSED_FILE="processed_subdomains.txt"
 WAYBACKDOMAIN="waybackdomain.txt"
 WAYBACKOUTPUT="waybackurls.txt"
 
+
+
+
 touch $WAYBACKOUTPUT $WAYBACKDOMAIN
 
 > waybackdomain.txt
@@ -13,6 +16,7 @@ touch $WAYBACKOUTPUT $WAYBACKDOMAIN
 # Variables for process control
 SUBFINDER_PID=""
 MONITOR_PID=""
+INACTIVE_DOMAIN_CHECK=""
 PAUSED=false
 
 # Function to display help
@@ -47,12 +51,50 @@ monitor_subfinder() {
     exit 0
 }
 
+check_active_urls() {
+    # Check if a filename is provided
+    if [ -z "$1" ]; then
+        echo "Usage: check_active_urls <file_name>"
+        return 1
+    fi
+
+    INPUT_FILE="$1"
+
+    # Check if the file exists
+    if [ ! -f "$INPUT_FILE" ]; then
+        echo "Error: File '$INPUT_FILE' does not exist."
+        return 1
+    fi
+
+    # Output file for active URLs
+    OUTPUT_FILE="active_${INPUT_FILE}"
+
+    # Clear the output file if it exists
+    > "$OUTPUT_FILE"
+
+    echo "Checking URLs from $INPUT_FILE..."
+
+    # Loop through each URL in the input file
+    while IFS= read -r url; do
+        if curl --head --silent --fail "$url" >/dev/null; then
+            echo "$url" >> "$OUTPUT_FILE"
+            echo "Active: $url"
+        else
+            echo "Inactive: $url"
+        fi
+    done < "$INPUT_FILE"
+
+    echo "Active URLs saved to $OUTPUT_FILE"
+}
+
 run_waybackurl(){
 
     local domain=$1
-    (echo $domain | waybackurls > waybackurls.txt) &
-    WAYBACK_PID=$!
-}
+    (urlexplorer -t $domain && check_active_urls waybackurls.txt) &
+    WAYBACK_PID=$
+} 
+
+
 # run_waybackurl(){
 
 # local domain=$1
@@ -161,7 +203,7 @@ control_terminal() {
                 ;;
             exit)
                 echo "Exiting script..."
-                kill "$SUBFINDER_PID" "$MONITOR_PID" 2>/dev/null
+                kill "$SUBFINDER_PID" "$MONITOR_PID" "$INACTIVE_DOMAIN_CHECK" 2>/dev/null
                 exit 0
                 ;;
             *)
@@ -169,6 +211,47 @@ control_terminal() {
                 ;;
         esac
     done
+}
+
+
+check_inactive_domains() {
+    
+
+    #OUTPUT_FILE="$1"
+    INACTIVE_FILE="inactive_domains.txt"
+    ACTIVE_FILE="active_waybackurls.txt"
+    ACTIVE_DOMAINS_FILE="active_domain_from_waybackurls.txt"
+
+    # Check if the inactive file exists
+    if [ ! -f "$INACTIVE_FILE" ]; then
+        echo "Error: File '$INACTIVE_FILE' does not exist."
+        touch "$INACTIVE_FILE"
+    fi
+
+    # Create or clear the active domains file
+    > "$ACTIVE_DOMAINS_FILE"
+    
+    # Function to continuously check for updates in the INACTIVE file
+    while true; do
+        # Read each domain from the INACTIVE file
+        while IFS= read -r domain; do
+            # Check if the domain exists in active_waybackurls.txt
+            if grep -q "https://$domain" "$ACTIVE_FILE"; then
+                # If found, append to active_domain_from_waybackurls.txt
+                echo "$domain" >> "$ACTIVE_DOMAINS_FILE"
+                echo "Active domain found: $domain"
+            elif grep -q "http://$domain" "$ACTIVE_FILE"; then
+                # If found, append to active_domain_from_waybackurls.txt
+                echo "$domain" >> "$ACTIVE_DOMAINS_FILE"
+                echo "Active domain found: $domain"
+            fi
+        done < "$INACTIVE_FILE"
+        
+        # Wait for new domains to be added to INACTIVE_$OUTPUT_FILE
+        sleep 5
+    done &
+    
+    echo "Background process to check inactive domains started."
 }
 
 # Main logic
@@ -211,6 +294,8 @@ main() {
     # Run subfinder and monitor in parallel
     run_waybackurl "$domain" 
     run_subfinder "$domain"
+    check_inactive_domains &
+    INACTIVE_DOMAIN_CHECK=$!
     monitor_subdomains "$OUTPUT_FILE" &
     MONITOR_PID=$!
 
