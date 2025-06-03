@@ -159,4 +159,4 @@ stop_tool() {
 
 
 # Start the control terminal
-control_terminal
+#control_terminal
