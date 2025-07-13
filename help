@@ -1,0 +1,10 @@
+       
+ 4265  shc -f ssrf.sh -o ssrf_checker                                                                                                                                                        
+ 3788  shc -f check_domain.sh -o status_domain                                                                                                                                               
+ 3731  shc -f check_domain.sh domain_status                                                                                                                                                  
+ 3728  shc -f urlexplorer.sh -o urlexplorer                                                                                                                                                  
+ 3741  shc -f find_subdomain.sh -o find_subdomain                                                                                                                                            
+ 3732  shc -f parallel_subdomain_status.sh -o bug_hunter                                                                                                                                     
+  781  shc -f find_subdomain.sh -o status_domain       
+ 3732  shc -f parallel_subdomain_status.sh -o bug_hunter                                                                                                                                     
+  781  shc -f find_subdomain.sh -o status_domain 
